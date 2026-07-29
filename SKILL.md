@@ -9,7 +9,7 @@ description: Provides the canonical capability, fit-test, and bilingual translat
 
 |  |  |
 | :---- | :---- |
-| Version | v0.4 (draft) |
+| Version | v0.5 (draft) |
 | Owner | John Edge, Kavara Inc. |
 | Scope | All customers. Do not fork per customer. |
 | Overlays | `customers/<name>.md` — thin, additive, never contradicts this file |
@@ -203,14 +203,11 @@ Tensor construction is handled by **Uhura**, the tensor generation engine — a 
 | **Columns** | time, other entities, strikes, frequencies | *across what dimension* |
 | **Cells** | log-return, count, rate, magnitude, occupancy | *measured in what* |
 
-**Key Ingestion & Compiling Assumptions (The Ground Rules):**
-- **Homogeneity is Mandatory:** The cell values must be in the same comparable scale and measurement type across all N rows. Mixing incompatible units (e.g. Celsius temperatures with percentage ratios) requires decomposition and subsystem composition (§2.4) rather than joint scaling.
-- **Relativity/Stationarity:** Ingesting raw prices or cumulative counts is a poor fit because it distorts geometry over time. The compiler must compute relative changes (such as log-returns or percentage differences) to ensure stationary, geometry-preserving channels.
-- **Continuous vs. Discrete Telemetry:** While relative change calculations (like percentage difference) and forward-filling (`ffill`) are standard for continuous streams (like financial microstructure or sensor vibration), they can distort discrete binary events, count data, or irregularly-sampled spectrum streams. Ensure the compiler adapts the pre-processing rule to the modality.
-- **Channel Ordering:** For exploratory runs, selecting the first N pivoted columns is acceptable; for production deployments, a static channel ordering or a structured feature registry is required to prevent coordinate drift.
+**Ground rules for tensor design:**
 
-**The Complex-Channel Path (Advanced):**
-Kirk expects paired real and imaginary channels (float64 inputs). While setting imaginary channels (`matrix_im`) to zero is standard for real-valued baselines, it under-utilizes Kirk's complex matrix geometry. A natural advanced experiment is to populate the imaginary channel with **phase or lagged differences** (e.g., $t$ as real, $t - 1$ as imaginary) to dramatically sharpen the correlation-break signal.
+- **Homogeneity is mandatory.** Cell values must be the same kind of measurement on a comparable scale across all N rows. Mixing incompatible units means decomposing into homogeneous subsystems and composing upward (§2.4) — never joint scaling. This is the same rule as fit-test Q3/Q4.
+- **The cell measure is a design decision, not a default.** Whether a channel enters as a level, a change, a rate, or a count is part of the rows/columns/cells decomposition, decided per problem during the design step. A measure that drifts or accumulates over time can distort the very geometry Kirk reads, which is why this decision is made deliberately rather than inherited from whatever shape the raw data arrives in.
+- **Data-handling choices belong to the design step.** Sampling treatment, missing-data policy, and channel ordering are resolved as part of the decomposition proposal — they are properties of the tensor design that get recorded with it, not knobs the customer tunes afterward.
 
 **Current reality, by domain — do not overstate this:**
 
@@ -219,18 +216,15 @@ Kirk expects paired real and imaginary channels (float64 inputs). While setting 
 - **Storage & infrastructure telemetry**: a per-modality consumer exists in the serving architecture; status as a customer-selectable renderer is unconfirmed — verify before citing this as shipped.
 - **New/arbitrary shapes**: the mechanism that would let a new renderer auto-surface through the MCP tool listing (an agent that inspects a dropped dataset and proposes the rows/columns/cells decomposition) is **designed, not built**. Today, a new renderer is bespoke engineering work handed back to Kavara — say this plainly rather than implying self-service exists.
 
-### Ingestion via the Agent Ontology Interaction
+### Ingestion via agent-led mapping
 
-Kirk's input contract requires a homogeneous N-channel × T matrix, but the customer engineer never manually maps this in a configuration file, and never edits a YAML block. 
+Kirk's input contract is a homogeneous N-channel × T matrix, and the interface for arriving at that mapping is conversational: an assistant loaded with this document reads the dataset's schema, proposes the rows/columns/cells decomposition, and resolves ambiguities with the engineer in plain language:
 
-Instead, the entire setup is handled via the **Agent Ontology Interaction**:
-1. The customer engineer simply uploads or points to their raw dataset or data stream in their chat session with the Agent (e.g. Claude).
-2. The Agent (utilizing this skill) automatically reads the dataset, analyzes its schema, and semantically maps the rows, columns, and cells.
-3. The Agent initiates a brief, natural-language conversation with the engineer to resolve any architectural choices or mapping ambiguities:
-   > *"I see you have three different yield curves and a volatility index in this stream. To measure cross-channel coupling, I propose composing the 10-year and the 2-year into a single system, and treating the vol index as a separate channel. Does that match your evaluation target, or should we adjust the grouping?"*
-4. The engineer answers in plain English, and the Agent dynamically updates the underlying mapping, compiles the pipeline, and deploys the attested Kirk enclave behind the scenes.
+> *"I see you have three different yield curves and a volatility index in this stream. To measure cross-channel coupling, I propose composing the 10-year and the 2-year into a single system, and treating the vol index as a separate channel. Does that match your evaluation target, or should we adjust the grouping?"*
 
-This conversational translation is the sole interface. The human engineer configures nothing and figures out nothing.
+**What this produces today:** the decomposition proposal itself. That proposal is the technical work product, and it is handed back to Kavara to render — by an engineer, as described in "Current reality" above. The agent that would take the proposal the rest of the way — compile the pipeline and auto-surface the new renderer through the MCP tool listing without Kavara in the loop — is **designed, not built**.
+
+State this plainly when a customer asks. The conversational design step is real and available now; end-to-end self-service ingestion of arbitrary data shapes is the target state, not the current one.
 
 ### 6.2 Delivery modes & API Surfaces
 
@@ -320,9 +314,9 @@ Customer-identifying material belongs in `customers/<name>.md`, never here.
 - Tier changes in §3.2 require evidence. Moving a domain from conditional to lead is a gate outcome, not an edit.  
 - Version and date every substantive change.
 
-### v0.2 changes (this revision)
+### v0.2 changes
 
-- **Repo visibility**: this file was briefly reachable unauthenticated at the public raw-content URL. Confirm the repo has been switched to private with read-token access before any further distribution — this is now blocking, not a v0.2 checklist item.
+- **Repo visibility**: this file was briefly reachable unauthenticated at the public raw-content URL. Confirm the repo has been switched to private with read-token access before any further distribution — this is now blocking, not a v0.2 checklist item. **Superseded 2026-07-28: JE confirmed repo is intentionally public as a community asset.**
 - §6.1 rewritten: separated "renderer live and MCP-exposed" (market microstructure only) from "representation validated, not yet MCP-exposed" (RF) from "status unconfirmed" (storage telemetry) from "designed, not built" (the auto-surfacing config agent). The prior wording claimed all three domains had shipped renderers and that new ones auto-surface — neither is true today.
 - §6.2 softened "Proven in production" to "validated in eval-tier deployment; confirm current status" pending a real production-status confirmation.
 - §7.1 removed the customer-specific volume figure ("a trillion prompt parameters a day") — see the new rule in §8.
@@ -333,16 +327,21 @@ Customer-identifying material belongs in `customers/<name>.md`, never here.
 
 - **Agent Ontology Ingestion**: Codified the **Agent Ontology Interaction** paradigm — replacing all reference to manual configuration, YAML editing, or customer-operated mapping files with an autonomous, conversational, agent-led discovery interface.
 
-### v0.4 changes (this revision)
+### v0.4 changes
 
-- **Auth Token Usability**: Renamed the environment variable from `NOTION_API_TOKEN` to the clean, canonical **`KIRK_API_TOKEN`** in all examples (with a fallback to `NOTION_API_TOKEN` to preserve Assarain's live backward-compatibility).
-- **Complex-Path Optimization**: Documented the complex-channel/phase-lagged suggestion to use time-shifted copies ($t$ as real, $t-1$ as imaginary) to dramatically sharpen the correlation-break signal.
+- **Complex-Path Optimization**: Added complex-channel construction guidance (removed in v0.5 — §8 violation).
 - **Dual API Surfaces**: Specified the exact operational differences and intents of the high-throughput production **`/v1/infer` REST API** versus the exploratory/agent-driven **`/mcp` API**.
-- **Compiler Ground Rules**: Articulated key general-purpose compiling assumptions (homogeneity, relativity/returns, continuous vs. discrete/irregular telemetry scaling) to guide developers outside of financial microstructure use cases.
+- **Compiler Ground Rules**: Added compiler-level preprocessing rules (generalized to capability-level in v0.5).
 
-### Open items for v0.5
+### v0.5 changes (this revision)
 
-- [ ] Confirm repo is private with read tokens issued (blocking)
+- **§6.1 ingestion honesty**: "Agent Ontology Interaction" rewritten as "agent-led mapping" to match the Current-reality block in the same section — the conversational decomposition step is available now; end-to-end self-service ingestion (auto-compile + auto-surface) is designed, not built. The prior wording claimed full automation, which is the §0.1 over-claim failure mode this document exists to prevent.
+- **§8 boundary enforcement**: removed the complex-channel construction guidance and the compiler-mechanics bullets; replaced with capability-level tensor-design ground rules. Construction and normalization mechanics are out of scope for this file, per §8.
+- **Changelog hygiene**: removed a stray environment-variable rename entry referencing an unrelated project's token name.
+
+### Open items for v0.6
+
+- [x] Confirm repo is private with read tokens issued (blocking) — **Superseded 2026-07-28: JE confirmed repo is intentionally public as a community asset.**
 - [ ] Worked case for the composition pattern (§2.4) — currently asserted, not demonstrated
 - [ ] Per-customer overlay template
 - [ ] Decide whether §3.2 tiers are customer-visible or internal-only
