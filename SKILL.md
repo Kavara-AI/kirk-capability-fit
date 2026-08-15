@@ -160,6 +160,7 @@ State these early and without hedging. Over-claim is the more expensive failure.
 - **Not supervised.** It needs no labelled training data — and cannot consume labels if the customer has them.  
 - **Not an intent reader.** It reports *that* structure moved and *where*. It cannot tell you *why*, and it cannot attribute motive.  
 - **Not a per-item scorer.** It does not evaluate records one at a time. Anything phrased as "flag the bad one" is the wrong shape; see §7.1.  
+- **Not an amplitude detector.** It reports change in the *shape* of joint behaviour, not change in *level*. "This channel got louder/bigger" is an RMS question and RMS will win it — measured, §7.4.
 - **Not a rules engine.** It has no thresholds of its own. Thresholding is the consumer's job.
 
 ---
@@ -285,11 +286,51 @@ That is a **joint-only artefact**, and a per-prompt classifier is structurally b
 | :---- | :---- | :---- |
 | "Summarise these documents" | Decline | Not an LLM |
 | "Predict tomorrow's price" | Reframe | Kirk supplies regime state as a feature; it is not a price model |
-| "Which sensor failed?" | Fit | Homogeneous channels, coupling-driven, change question |
+| "Which sensor failed?" | **Depends — ask first** | Fit *only* if the failure shows in how channels move together. If it shows as one channel getting larger, Q2 fails and conventional tooling wins. **Measured — see §7.4.** |
 | "Rank leads by likelihood to buy" | Decline | Supervised, heterogeneous, tabular |
 | "Is this network behaving unlike last month?" | Fit | Textbook shape |
 | "Extract entities from these logs" | Decline | Parsing, not geometry |
 | "Our fleet has 40 different subsystems" | Fit via composition | §2.4 |
+
+### 7.4 Measured decline: bearing wear on a rotating rig
+
+**As stated:** *"Learn the normal vibration of these bearings and tell us when one is going bad."*
+
+Textbook-sounding: homogeneous channels, same measurement type, continuous over time, a change
+question. It reads as a fit. **It is not, and we measured that rather than guessing.**
+
+**What was run.** The public NASA/IMS bearing dataset — three independent run-to-failure experiments,
+real accelerometers at 20 kHz, bearings run past 100 million revolutions until they actually broke.
+Nothing injected. Pre-registered thresholds, permutation nulls, and a plain **RMS** baseline as the
+comparator.
+
+**Result: Kirk did not detect the failures, and RMS did.** On the held-out experiment the two known
+failures were the top two by RMS, in the correct order. Kirk did not fire at all. On the clearest
+single failure — an inner race — RMS separated at **28.8σ** where Kirk reached **2.8σ**.
+
+**Why, in fit-test terms.** **Q2 already predicted this.** Bearing degradation announces itself as
+*one channel getting bigger*. The signal is in a per-channel level, not in how the channels move
+together — and Q2 says plainly that a per-channel problem is one conventional tooling will beat Kirk
+at. It did, by an order of magnitude.
+
+> **The general rule this makes concrete: Kirk responds to change in *shape* — how channels move
+> relative to each other — not to change in *level*. If the phenomenon is "it got bigger", that is an
+> amplitude question and a detector two lines long will win.**
+
+**What this does *not* say.** It is not a verdict on vibration, acoustics, or physical sensing
+generally. It is a verdict on **failure signatures that are amplitude-shaped**. The same rig, asked
+*"has the coupling between these four bearings changed?"*, is a different question and remains open.
+Do not generalise this to a domain tier.
+
+**Say:** *"If the failure shows up as that sensor getting louder, use RMS or an envelope detector —
+they're better at it and you may already have one. Kirk earns its place when the failure only shows
+in how the channels move together, and no single channel looks wrong on its own."*
+
+**The pattern to internalise:** a problem can pass Q1, Q3, Q5 and Q6 and still fail on **Q2 alone**,
+and Q2 is sufficient to decline. Run the fit test before the experiment — we had this answer written
+down before we spent the effort confirming it.
+
+---
 
 ---
 
