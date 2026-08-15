@@ -1,0 +1,20 @@
+name: IP boundary (§8)
+
+# A real, satisfiable gate for a repo with one writer. A required-review rule cannot be
+# met by a single person — GitHub does not permit self-approval — so it protects nothing
+# and can only be cleared by admin override. This can actually pass or fail.
+on:
+  pull_request:
+    paths: ["SKILL.md", "README.md", "tools/check_ip_boundary.py"]
+  push:
+    branches: [main]
+
+jobs:
+  boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Check §8 IP boundary
+        run: python3 tools/check_ip_boundary.py
