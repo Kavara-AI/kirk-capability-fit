@@ -9,6 +9,12 @@ on:
   push:
     branches: [main]
 
+# Least privilege for GITHUB_TOKEN. The only job checks out the repo and scans
+# SKILL.md on disk; it does not push, comment, cache, or call the GitHub API,
+# so it keeps this grant and does not elevate at job level.
+permissions:
+  contents: read
+
 jobs:
   boundary:
     runs-on: ubuntu-latest
